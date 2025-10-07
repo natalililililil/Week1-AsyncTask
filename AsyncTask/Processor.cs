@@ -8,28 +8,40 @@ namespace AsyncTask
 
         internal static void RunSync()
         {
+            MeasureTime(() =>
+            {
+                foreach (var file in Files)
+                    ProcessData(file);
+            });
+        }
+
+        internal static async Task RunAsync()
+        {
+            await MeasureTimeAsync(async () =>
+            {
+                var tasks = Files.Select(ProcessDataAsync).ToList();
+
+                while (tasks.Count > 0)
+                {
+                    var finished = await Task.WhenAny(tasks);
+                    tasks.Remove(finished);
+                }
+            });
+        }
+
+        private static void MeasureTime(Action action)
+        {
             var timer = Stopwatch.StartNew();
-
-            foreach (var file in Files)
-                ProcessData(file);
-
+            action();
             timer.Stop();
 
             Console.WriteLine($"Общее время выполнения синхронной задачи: {timer.ElapsedMilliseconds} мс");
         }
 
-        internal static async Task RunAsync()
+        private static async Task MeasureTimeAsync(Func<Task> asyncAction)
         {
             var timer = Stopwatch.StartNew();
-
-            var tasks = Files.Select(ProcessDataAsync).ToList();
-
-            while (tasks.Count > 0)
-            {
-                var finished = await Task.WhenAny(tasks);
-                tasks.Remove(finished);
-            }
-
+            await asyncAction();
             timer.Stop();
 
             Console.WriteLine($"Общее время выполнения асинхронной задачи: {timer.ElapsedMilliseconds} мс");
